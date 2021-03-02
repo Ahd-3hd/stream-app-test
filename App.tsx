@@ -1,23 +1,44 @@
 import { StatusBar } from "expo-status-bar";
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { View, Button, Alert } from "react-native";
 import YoutubePlayer from "react-native-youtube-iframe";
+import io from "socket.io-client";
 
 export default function App() {
   const [playing, setPlaying] = useState(false);
   const playerRef = useRef<any>();
+  const socketRef = useRef<any>();
+
+  useEffect(() => {
+    socketRef.current = io("http://10.0.2.2:3000");
+    socketRef.current.on("getTime", (time: any) => {
+      console.log(time);
+    });
+  }, []);
 
   const onStateChange = useCallback((state) => {
-    if (state === "ended") {
-      setPlaying(false);
-      Alert.alert("video has finished playing!");
-      console.log(state);
-    }
+    console.log(state);
+    socketRef.current.emit(
+      "getTime",
+      playerRef.current
+        ?.getCurrentTime()
+        .then((currentTime: any) => handleSeekChange(currentTime))
+    );
+    // if (state === "ended") {
+    //   setPlaying(false);
+    //   Alert.alert("video has finished playing!");
+    //   console.log(state);
+    // }
   }, []);
 
   const togglePlaying = useCallback(() => {
     setPlaying((prev) => !prev);
   }, []);
+
+  const handleSeekChange = (data: any) => {
+    console.log(data);
+    socketRef.current.emit("getTime", data);
+  };
 
   return (
     <View>
@@ -35,11 +56,11 @@ export default function App() {
         onPress={() => {
           playerRef.current
             ?.getCurrentTime()
-            .then((currentTime: any) => console.log({ currentTime }));
+            .then((currentTime: any) => handleSeekChange(currentTime));
 
-          playerRef.current
-            ?.getDuration()
-            .then((getDuration: any) => console.log({ getDuration }));
+          // playerRef.current
+          //   ?.getDuration()
+          //   .then((getDuration: any) => console.log({ getDuration }));
         }}
       />
     </View>
